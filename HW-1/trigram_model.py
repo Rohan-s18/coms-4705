@@ -80,85 +80,124 @@ class TrigramModel(object):
         and trigram counts.
         """
 
-        unigrams = get_ngrams(corpus, 1)
-        bigrams = get_ngrams(corpus, 2)
-        trigrams = get_ngrams(corpus, 3)
+        # initializing count dictionaries
+        self.unigramcounts = defaultdict(int)
+        self.bigramcounts = defaultdict(int)
+        self.trigramcounts = defaultdict(int)
 
-        unique_unigrams = set(unigrams)
-        unique_bigrams = set(bigrams)
-        unique_trigrams = set(trigrams)
+        for sentence in corpus:
 
-        self.unigramcounts = {}  # might want to use defaultdict or Counter instead
-        self.bigramcounts = {}
-        self.trigramcounts = {}
+            # generating ngrams for the current sentence
+            unigrams = get_ngrams(sentence.copy(), 1)
+            bigrams = get_ngrams(sentence.copy(), 2)
+            trigrams = get_ngrams(sentence.copy(), 3)
 
-        for unigram in unique_unigrams:
-            ct = 0
-            for word in unigrams:
-                if word == unigram:
-                    ct += 1
-            self.unigramcounts[unigram] = ct
+            # updating counts
+            for unigram in unigrams:
+                self.unigramcounts[unigram] += 1
+            
+            for bigram in bigrams:
+                self.bigramcounts[bigram] += 1
 
-        for bigram in unique_bigrams:
-            ct = 0
-            for word in bigrams:
-                if word == bigram:
-                    ct += 1
-            self.bigramcounts[bigram] = ct
-
-        for trigram in unique_trigrams:
-            ct = 0
-            for word in trigrams:
-                if word == trigram:
-                    ct += 1
-            self.trigramcounts[trigram] = ct
-
-        ##Your code here
-
-        return
-
-    def raw_trigram_probability(self, trigram):
-        """
-        COMPLETE THIS METHOD (PART 3)
-        Returns the raw (unsmoothed) trigram probability
-        """
-        return 0.0
-
-    def raw_bigram_probability(self, bigram):
-        """
-        COMPLETE THIS METHOD (PART 3)
-        Returns the raw (unsmoothed) bigram probability
-        """
-        return 0.0
+            for trigram in trigrams:
+                self.trigramcounts[trigram] += 1
 
     def raw_unigram_probability(self, unigram):
         """
-        COMPLETE THIS METHOD (PART 3)
         Returns the raw (unsmoothed) unigram probability.
         """
+        if self.total_unigrams == 0:
+            return 0.0
+        return self.unigramcounts[unigram] / self.total_unigrams
 
-        # hint: recomputing the denominator every time the method is called
-        # can be slow! You might want to compute the total number of words once,
-        # store in the TrigramModel instance, and then re-use it.
-        return 0.0
+    def raw_bigram_probability(self, bigram):
+        """
+        Returns the raw (unsmoothed) bigram probability.
+        """
+        # Count of the first word (unigram)
+        first_word = (bigram[0],)
+        if self.unigramcounts[first_word] == 0:
+            return 0.0
+        return self.bigramcounts[bigram] / self.unigramcounts[first_word]
+
+    def raw_trigram_probability(self, trigram):
+        """
+        Returns the raw (unsmoothed) trigram probability.
+        """
+        bigram_context = (trigram[0], trigram[1])
+        
+        # If the bigram context count is 0, return uniform distribution over vocabulary
+        if self.bigramcounts[bigram_context] == 0:
+            return 1 / len(self.lexicon)
+        
+        return self.trigramcounts[trigram] / self.bigramcounts[bigram_context]
+
 
     def generate_sentence(self, t=20):
         """
-        COMPLETE THIS METHOD (OPTIONAL)
-        Generate a random sentence from the trigram model. t specifies the
-        max length, but the sentence may be shorter if STOP is reached.
+        Generate a random sentence from the trigram model.
+        Starts with ("START", "START") and generates the next word
+        based on the trigram probabilities until the "STOP" token is generated,
+        or the maximum sentence length `t` is reached.
         """
-        return result
+        sentence = []
+        current_bigram = ("START", "START")
+
+        for _ in range(t):
+            
+            candidates = []
+            probabilities = []
+            
+            # populating candidates and their corresponding trigram probabilities
+            for word in self.lexicon:
+                trigram = (current_bigram[0], current_bigram[1], word)
+                prob = self.raw_trigram_probability(trigram)
+                
+                if prob > 0:
+                    candidates.append(word)
+                    probabilities.append(prob)
+
+            if not candidates:
+                break
+
+            # randomly selecting the next word based on trigram probabilities
+            next_word = random.choices(candidates, probabilities)[0]
+
+            # stop generation if we reach the "STOP" token
+            if next_word == "STOP":
+                break
+
+            sentence.append(next_word)
+
+            # updating the current bigram context
+            current_bigram = (current_bigram[1], next_word)
+
+        return sentence
 
     def smoothed_trigram_probability(self, trigram):
         """
-        COMPLETE THIS METHOD (PART 4)
-        Returns the smoothed trigram probability (using linear interpolation).
+        Returns the smoothed trigram probability using linear interpolation.
+        The interpolation parameters lambda1, lambda2, and lambda3 are set to 1/3.
         """
         lambda1 = 1 / 3.0
         lambda2 = 1 / 3.0
         lambda3 = 1 / 3.0
-        return 0.0
+        
+        w1, w2, w3 = trigram
+        
+        # Raw probabilities
+        trigram_prob = self.raw_trigram_probability((w1, w2, w3))
+        bigram_prob = self.raw_bigram_probability((w2, w3))
+        unigram_prob = self.raw_unigram_probability((w3,))
+        
+        # Linear interpolation of trigram, bigram, and unigram probabilities
+        smoothed_prob = (
+            lambda1 * trigram_prob +
+            lambda2 * bigram_prob +
+            lambda3 * unigram_prob
+        )
+        
+        return smoothed_prob
 
     def sentence_logprob(self, sentence):
         """
@@ -198,20 +237,7 @@ if __name__ == "__main__":
     generator = corpus_reader(
         "/Users/rohansingh/github_repos/coms-4705/HW-1/hw1_data/brown_train.txt"
     )
-    corp_sentances = [sentance for sentance in generator]
-
-    sentance = max(corp_sentances)
-    print(f"\nsentance: {sentance}\n")
-
-    monograms = get_ngrams(sequence=sentance, n=1)
-    bigrams = get_ngrams(sequence=sentance, n=2)
-    trigrams = get_ngrams(sequence=sentance, n=3)
-    quadgrams = get_ngrams(sequence=sentance, n=4)
-
-    print(f"\nmonograms: {monograms}\n")
-    print(f"\nbigrams: {bigrams}\n")
-    print(f"\ntrigrams: {trigrams}\n")
-    print(f"\nquadgrams: {quadgrams}\n")
+    
 
     # put test code here...
     # or run the script from the command line with
