@@ -37,6 +37,10 @@ MANIFEST
 *.manifest
 *.spec
 
+.ruff_cache
+
+hw1_data
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
