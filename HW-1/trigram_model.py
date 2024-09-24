@@ -1,9 +1,9 @@
-import sys
 from collections import defaultdict
 import math
-import random
 import os
 import os.path
+import random
+import sys
 
 """
 COMS W4705 - Natural Language Processing - Fall 2024 
@@ -33,29 +33,21 @@ def get_lexicon(corpus):
 
 def get_ngrams(sequence, n):
     """
-    COMPLETE THIS FUNCTION (PART 1)
-    Given a sequence, this function should return a list of n-grams, where each n-gram is a Python tuple.
-    This should work for arbitrary values of n >= 1
+    Given a sequence, this function returns a list of n-grams, where each n-gram is a Python tuple.
+    This works for arbitrary values of n >= 1.
     """
-
-    ngrams = []
-
+    # handling the unigram case
     if n == 1:
-        ngrams.append(tuple(["START"]))
-        for word in sequence:
-            ngrams.append(tuple([word]))
-        ngrams.append(tuple(["STOP"]))
-        return ngrams
+        return [("START",)] + [(word,) for word in sequence] + [("STOP",)]
 
-    sequence.append("STOP")
-    seq = ["START" for _ in range(n - 1)]
-    for word in sequence:
-        seq.append(word)
+    # adding START and STOP tokens as padding for n >= 2
+    padded_sequence = ["START"] * (n - 1) + sequence + ["STOP"]
 
-    for i in range(0, len(seq) - (2 * n - 3), 1):
-        sub = [word for word in seq[i : i + n]]
-        sub = tuple(sub)
-        ngrams.append(sub)
+    # generating n-grams
+    ngrams = []
+    for i in range(len(padded_sequence) - n + 1):
+        ngram = tuple(padded_sequence[i : i + n])
+        ngrams.append(ngram)
 
     return ngrams
 
@@ -73,29 +65,25 @@ class TrigramModel(object):
         generator = corpus_reader(corpusfile, self.lexicon)
         self.count_ngrams(generator)
 
+        # Compute total number of tokens (for unigram probability)
+        self.total_unigrams = sum(self.unigramcounts.values())
+
     def count_ngrams(self, corpus):
         """
-        COMPLETE THIS METHOD (PART 2)
-        Given a corpus iterator, populate dictionaries of unigram, bigram,
-        and trigram counts.
+        Populate dictionaries of unigram, bigram, and trigram counts.
         """
-
-        # initializing count dictionaries
         self.unigramcounts = defaultdict(int)
         self.bigramcounts = defaultdict(int)
         self.trigramcounts = defaultdict(int)
 
         for sentence in corpus:
-
-            # generating ngrams for the current sentence
             unigrams = get_ngrams(sentence.copy(), 1)
             bigrams = get_ngrams(sentence.copy(), 2)
             trigrams = get_ngrams(sentence.copy(), 3)
 
-            # updating counts
             for unigram in unigrams:
                 self.unigramcounts[unigram] += 1
-            
+
             for bigram in bigrams:
                 self.bigramcounts[bigram] += 1
 
@@ -114,7 +102,7 @@ class TrigramModel(object):
         """
         Returns the raw (unsmoothed) bigram probability.
         """
-        # Count of the first word (unigram)
+        # counting of the first word (unigram)
         first_word = (bigram[0],)
         if self.unigramcounts[first_word] == 0:
             return 0.0
@@ -125,13 +113,35 @@ class TrigramModel(object):
         Returns the raw (unsmoothed) trigram probability.
         """
         bigram_context = (trigram[0], trigram[1])
-        
-        # If the bigram context count is 0, return uniform distribution over vocabulary
+
+        # if the bigram context count is 0, returning the uniform distribution over vocabulary
         if self.bigramcounts[bigram_context] == 0:
             return 1 / len(self.lexicon)
-        
+
         return self.trigramcounts[trigram] / self.bigramcounts[bigram_context]
 
+    def smoothed_trigram_probability(self, trigram):
+        """
+        Returns the smoothed trigram probability using linear interpolation.
+        The interpolation parameters lambda1, lambda2, and lambda3 are set to 1/3.
+        """
+        lambda1 = 1 / 3.0
+        lambda2 = 1 / 3.0
+        lambda3 = 1 / 3.0
+
+        w1, w2, w3 = trigram
+
+        # raw probabilities
+        trigram_prob = self.raw_trigram_probability((w1, w2, w3))
+        bigram_prob = self.raw_bigram_probability((w2, w3))
+        unigram_prob = self.raw_unigram_probability((w3,))
+
+        # linear interpolation
+        smoothed_prob = (
+            lambda1 * trigram_prob + lambda2 * bigram_prob + lambda3 * unigram_prob
+        )
+
+        return smoothed_prob
 
     def generate_sentence(self, t=20):
         """
@@ -144,15 +154,14 @@ class TrigramModel(object):
         current_bigram = ("START", "START")
 
         for _ in range(t):
-            
             candidates = []
             probabilities = []
-            
+
             # populating candidates and their corresponding trigram probabilities
             for word in self.lexicon:
                 trigram = (current_bigram[0], current_bigram[1], word)
                 prob = self.raw_trigram_probability(trigram)
-                
+
                 if prob > 0:
                     candidates.append(word)
                     probabilities.append(prob)
@@ -160,13 +169,13 @@ class TrigramModel(object):
             if not candidates:
                 break
 
-            # randomly selecting the next word based on trigram probabilities
+            # randomly selecting words based on probability
             next_word = random.choices(candidates, probabilities)[0]
 
-            # stop generation if we reach the "STOP" token
             if next_word == "STOP":
                 break
 
+            # appending the word to the sentence
             sentence.append(next_word)
 
             # updating the current bigram context
@@ -174,70 +183,108 @@ class TrigramModel(object):
 
         return sentence
 
-    def smoothed_trigram_probability(self, trigram):
-        """
-        Returns the smoothed trigram probability using linear interpolation.
-        The interpolation parameters lambda1, lambda2, and lambda3 are set to 1/3.
-        """
-        lambda1 = 1 / 3.0
-        lambda2 = 1 / 3.0
-        lambda3 = 1 / 3.0
-        
-        w1, w2, w3 = trigram
-        
-        # Raw probabilities
-        trigram_prob = self.raw_trigram_probability((w1, w2, w3))
-        bigram_prob = self.raw_bigram_probability((w2, w3))
-        unigram_prob = self.raw_unigram_probability((w3,))
-        
-        # Linear interpolation of trigram, bigram, and unigram probabilities
-        smoothed_prob = (
-            lambda1 * trigram_prob +
-            lambda2 * bigram_prob +
-            lambda3 * unigram_prob
-        )
-        
-        return smoothed_prob
-
     def sentence_logprob(self, sentence):
         """
-        COMPLETE THIS METHOD (PART 5)
-        Returns the log probability of an entire sequence.
+        Computes the log probability of an entire sentence based on the trigram model.
+
+        Args:
+            sentence (list of str): The sentence represented as a list of tokens.
+
+        Returns:
+            float: The log probability of the sentence.
         """
-        return float("-inf")
+
+        # adding "START" and "STOP" tokens to the sentence
+        sentence = ["START", "START"] + sentence + ["STOP"]
+
+        # getting the trigrams for the sentence
+        trigrams = get_ngrams(sentence, 3)
+
+        log_prob = 0.0
+
+        for trigram in trigrams:
+            prob = self.smoothed_trigram_probability(trigram)
+
+            if prob > 0:
+                log_prob += math.log2(prob)
+            else:
+                # edge case
+                log_prob += 0
+
+        return log_prob
 
     def perplexity(self, corpus):
         """
-        COMPLETE THIS METHOD (PART 6)
-        Returns the log probability of an entire sequence.
+        Compute the perplexity of the model on the given corpus.
+        Corpus is a corpus iterator, as returned by the corpus_reader method.
         """
-        return float("inf")
+        total_log_prob = 0.0
+        total_word_count = 0
+
+        for sentence in corpus:
+            # computing the log probability of the sentence
+            sentence_log_prob = self.sentence_logprob(sentence)
+            total_log_prob += sentence_log_prob
+
+            total_word_count += len(sentence)
+
+        # calculating average log probability
+        average_log_prob = total_log_prob / total_word_count
+
+        perplexity = math.pow(2, -average_log_prob)
+
+        return perplexity
 
 
-def essay_scoring_experiment(training_file1, training_file2, testdir1, testdir2):
-    model1 = TrigramModel(training_file1)
-    model2 = TrigramModel(training_file2)
+def essay_scoring_experiment(
+    train_high_file, train_low_file, test_high_dir, test_low_dir
+):
+    """
+    This method compares the perplexities of two trigram models (high skill and low skill)
+    on test essays and returns the accuracy of the predictions.
+    """
 
-    total = 0
-    correct = 0
+    # training two trigram models
+    high_model = TrigramModel(train_high_file)
+    low_model = TrigramModel(train_low_file)
 
-    for f in os.listdir(testdir1):
-        pp = model1.perplexity(corpus_reader(os.path.join(testdir1, f), model1.lexicon))
-        # ..
+    correct_predictions = 0
+    total_predictions = 0
 
-    for f in os.listdir(testdir2):
-        pp = model2.perplexity(corpus_reader(os.path.join(testdir2, f), model2.lexicon))
-        # ..
+    # evaluating essays in the high skill test set
+    for essay_file in os.listdir(test_high_dir):
+        with open(os.path.join(test_high_dir, essay_file), "r") as f:
+            essay = f.read().split()
 
-    return 0.0
+        high_perplexity = high_model.perplexity([essay])
+        low_perplexity = low_model.perplexity([essay])
+
+        # if the high model perplexity is lower, predict "high"; otherwise predict "low"
+        if high_perplexity < low_perplexity:
+            correct_predictions += 1  # correctly predicted as high
+        total_predictions += 1
+
+    # evaluating essays in the low skill test set
+    for essay_file in os.listdir(test_low_dir):
+        with open(os.path.join(test_low_dir, essay_file), "r") as f:
+            essay = f.read().split()
+
+        high_perplexity = high_model.perplexity([essay])
+        low_perplexity = low_model.perplexity([essay])
+
+        # if the low model perplexity is lower, predict "low"; otherwise predict "high"
+        if low_perplexity < high_perplexity:
+            correct_predictions += 1  # correctly predicted as low
+        total_predictions += 1
+
+        # calculating accuracy as the number of correct predictions / total predictions
+        accuracy = correct_predictions / total_predictions
+
+        return accuracy
 
 
 if __name__ == "__main__":
-    # model = TrigramModel(sys.argv[1])
-    generator = corpus_reader(
-        "/Users/rohansingh/github_repos/coms-4705/HW-1/hw1_data/brown_train.txt"
-    )
-    
+    model = TrigramModel(sys.argv[1])
 
     # put test code here...
     # or run the script from the command line with
@@ -248,10 +295,15 @@ if __name__ == "__main__":
     # Python prompt.
 
     # Testing perplexity:
-    # dev_corpus = corpus_reader(sys.argv[2], model.lexicon)
-    # pp = model.perplexity(dev_corpus)
-    # print(pp)
+    dev_corpus = corpus_reader(sys.argv[2], model.lexicon)
+    pp = model.perplexity(dev_corpus)
+    print(pp)
 
     # Essay scoring experiment:
-    # acc = essay_scoring_experiment('train_high.txt', 'train_low.txt", "test_high", "test_low")
-    # print(acc)
+    acc = essay_scoring_experiment(
+        train_high_file="hw1_data/ets_toefl_data/train_high.txt",
+        train_low_file="hw1_data/ets_toefl_data/train_low.txt",
+        test_high_dir="hw1_data/ets_toefl_data/test_high",
+        test_low_dir="hw1_data/ets_toefl_data/test_low",
+    )
+    print(acc)
