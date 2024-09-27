@@ -61,11 +61,11 @@ class TrigramModel(object):
         self.lexicon.add("START")
         self.lexicon.add("STOP")
 
-        # Now iterate through the corpus again and count ngrams
+        # counting ngrams
         generator = corpus_reader(corpusfile, self.lexicon)
         self.count_ngrams(generator)
 
-        # Compute total number of tokens (for unigram probability)
+        # total number of tokens (for unigram probability)
         self.total_unigrams = sum(self.unigramcounts.values())
 
     def count_ngrams(self, corpus):
@@ -289,6 +289,7 @@ if __name__ == "__main__":
     # put test code here...
     # or run the script from the command line with
     # $ python -i trigram_model.py [corpus_file]
+    # python trigram_model.py "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/brown_train.txt" "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/brown_train.txt"
     # >>>
     #
     # you can then call methods on the model instance in the interactive
@@ -301,9 +302,9 @@ if __name__ == "__main__":
 
     # Essay scoring experiment:
     acc = essay_scoring_experiment(
-        train_high_file="hw1_data/ets_toefl_data/train_high.txt",
-        train_low_file="hw1_data/ets_toefl_data/train_low.txt",
-        test_high_dir="hw1_data/ets_toefl_data/test_high",
-        test_low_dir="hw1_data/ets_toefl_data/test_low",
+        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/train_high.txt",
+        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/train_low.txt",
+        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/test_high",
+        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/test_low",
     )
     print(acc)
