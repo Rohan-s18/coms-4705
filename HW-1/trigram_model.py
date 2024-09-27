@@ -296,15 +296,15 @@ if __name__ == "__main__":
     # Python prompt.
 
     # Testing perplexity:
-    dev_corpus = corpus_reader(sys.argv[2], model.lexicon)
-    pp = model.perplexity(dev_corpus)
-    print(pp)
+    # dev_corpus = corpus_reader(sys.argv[2], model.lexicon)
+    # pp = model.perplexity(dev_corpus)
+    # print(pp)
 
     # Essay scoring experiment:
-    acc = essay_scoring_experiment(
-        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/train_high.txt",
-        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/train_low.txt",
-        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/test_high",
-        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/test_low",
-    )
-    print(acc)
+    # acc = essay_scoring_experiment(
+    #    "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/train_high.txt",
+    #    "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/train_low.txt",
+    #    "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/test_high",
+    #    "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/test_low",
+    # )
+    # print(acc)
