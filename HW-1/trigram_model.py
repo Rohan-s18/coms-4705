@@ -1,3 +1,8 @@
+"""
+author: rohan singh
+code for COMS W4705 HW 1
+"""
+
 from collections import defaultdict
 import math
 import os
