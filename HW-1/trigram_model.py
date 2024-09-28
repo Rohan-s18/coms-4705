@@ -77,11 +77,13 @@ class TrigramModel(object):
         """
         Populate dictionaries of unigram, bigram, and trigram counts.
         """
+        self.num_sentences = 0
         self.unigramcounts = defaultdict(int)
         self.bigramcounts = defaultdict(int)
         self.trigramcounts = defaultdict(int)
 
         for sentence in corpus:
+            self.num_sentences += 1
             unigrams = get_ngrams(sentence.copy(), 1)
             bigrams = get_ngrams(sentence.copy(), 2)
             trigrams = get_ngrams(sentence.copy(), 3)
@@ -108,9 +110,11 @@ class TrigramModel(object):
         Returns the raw (unsmoothed) bigram probability.
         """
         # counting of the first word (unigram)
-        first_word = (bigram[0],)
+        first_word = (bigram[1],)
         if self.unigramcounts[first_word] == 0:
-            return 0.0
+            return 1 / self.num_sentences
+        if first_word == ("START",):
+            return 1 / self.num_sentences
         return self.bigramcounts[bigram] / self.unigramcounts[first_word]
 
     def raw_trigram_probability(self, trigram):
@@ -241,7 +245,7 @@ class TrigramModel(object):
         return perplexity
 
 
-def essay_scoring_experiment(
+def essay_scoring_experiment1(
     train_high_file, train_low_file, test_high_dir, test_low_dir
 ):
     """
@@ -286,6 +290,67 @@ def essay_scoring_experiment(
         accuracy = correct_predictions / total_predictions
 
         return accuracy
+    
+
+def essay_scoring_experiment(
+    train_high_file, train_low_file, test_high_dir, test_low_dir
+):
+    """
+    This method compares the perplexities of two trigram models (high skill and low skill)
+    on test essays and returns both the accuracy and AUROC of the predictions.
+    """
+
+    # training two trigram models
+    high_model = TrigramModel(train_high_file)
+    low_model = TrigramModel(train_low_file)
+
+    correct_predictions = 0
+    total_predictions = 0
+    true_labels = []
+    predicted_probs = []
+
+    # evaluating essays in the high skill test set
+    for essay_file in os.listdir(test_high_dir):
+        with open(os.path.join(test_high_dir, essay_file), "r") as f:
+            essay = f.read().split()
+
+        high_perplexity = high_model.perplexity([essay])
+        low_perplexity = low_model.perplexity([essay])
+
+        true_labels.append(1)
+
+        predicted_prob = low_perplexity / (low_perplexity + high_perplexity)
+        predicted_probs.append(predicted_prob)
+
+        if high_perplexity < low_perplexity:
+            correct_predictions += 1  # correctly predicted as high
+        total_predictions += 1
+
+    # evaluating essays in the low skill test set
+    for essay_file in os.listdir(test_low_dir):
+        with open(os.path.join(test_low_dir, essay_file), "r") as f:
+            essay = f.read().split()
+
+        high_perplexity = high_model.perplexity([essay])
+        low_perplexity = low_model.perplexity([essay])
+
+        true_labels.append(0)
+
+        predicted_prob = low_perplexity / (low_perplexity + high_perplexity)
+        predicted_probs.append(predicted_prob)
+
+        if low_perplexity < high_perplexity:
+            correct_predictions += 1  # correctly predicted as low
+        total_predictions += 1
+
+    accuracy = correct_predictions / total_predictions
+
+    #auroc = roc_auc_score(true_labels, predicted_probs)
+
+    #print(f"auroc is: {auroc}")
+
+    return accuracy
+
 
 
 if __name__ == "__main__":
@@ -301,15 +366,15 @@ if __name__ == "__main__":
     # Python prompt.
 
     # Testing perplexity:
-    # dev_corpus = corpus_reader(sys.argv[2], model.lexicon)
-    # pp = model.perplexity(dev_corpus)
-    # print(pp)
+    dev_corpus = corpus_reader(sys.argv[2], model.lexicon)
+    pp = model.perplexity(dev_corpus)
+    print(pp)
 
     # Essay scoring experiment:
-    # acc = essay_scoring_experiment(
-    #    "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/train_high.txt",
-    #    "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/train_low.txt",
-    #    "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/test_high",
-    #    "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/test_low",
-    # )
-    # print(acc)
+    acc = essay_scoring_experiment(
+        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/train_high.txt",
+        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/train_low.txt",
+        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/test_high",
+        "/Users/rohansingh/Documents/fall 24/coms 4705/HW/hw1_data/ets_toefl_data/test_low",
+    )
+    print(acc)
