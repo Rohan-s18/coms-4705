@@ -2,7 +2,7 @@ from conll_reader import DependencyStructure, conll_reader
 from collections import defaultdict
 import copy
 import sys
-import keras
+#import keras
 import numpy as np
 
 class State(object):
@@ -91,7 +91,7 @@ dep_relations = ['tmod', 'vmod', 'csubjpass', 'rcmod', 'ccomp', 'poss', 'paratax
 
 
 class FeatureExtractor(object):
-       
+
     def __init__(self, word_vocab_file, pos_vocab_file):
         self.word_vocab = self.read_vocab(word_vocab_file)        
         self.pos_vocab = self.read_vocab(pos_vocab_file)        
@@ -99,28 +99,51 @@ class FeatureExtractor(object):
 
     def make_output_labels(self):
         labels = []
-        labels.append(('shift',None))
-    
-        for rel in dep_relations:
-            labels.append(("left_arc",rel))
-            labels.append(("right_arc",rel))
-        return dict((label, index) for (index,label) in enumerate(labels))
+        labels.append(('shift', None))
 
-    def read_vocab(self,vocab_file):
+        for rel in dep_relations:
+            labels.append(("left_arc", rel))
+            labels.append(("right_arc", rel))
+        return dict((label, index) for (index, label) in enumerate(labels))
+
+    def read_vocab(self, vocab_file):
         vocab = {}
-        for line in vocab_file: 
+        for line in vocab_file:
             word, index_s = line.strip().split()
             index = int(index_s)
             vocab[word] = index
-        return vocab     
+        return vocab
 
     def get_input_representation(self, words, pos, state):
-        # TODO: Write this method for Part 2
-        return np.zeros(6)
+        indices = []
+        NULL_INDEX = self.word_vocab['<NULL>']
 
-    def get_output_representation(self, output_pair):  
-        # TODO: Write this method for Part 2
-        return np.zeros(91)
+        # Get top 3 from the stack
+        for i in range(3):
+            if len(state.stack) > i:
+                word_idx = state.stack[-(i+1)]  # stack[-1], stack[-2], stack[-3]
+                word = words[word_idx]
+                indices.append(self.word_vocab.get(word, self.word_vocab['<UNK>']))
+            else:
+                indices.append(NULL_INDEX)
+
+        # Get top 3 from the buffer
+        for i in range(3):
+            if len(state.buffer) > i:
+                word_idx = state.buffer[-(i+1)]  # buffer[-1], buffer[-2], buffer[-3]
+                word = words[word_idx]
+                indices.append(self.word_vocab.get(word, self.word_vocab['<UNK>']))
+            else:
+                indices.append(NULL_INDEX)
+
+        return np.array(indices)
+
+    def get_output_representation(self, output_pair):
+        output_vector = np.zeros(91)
+        transition, label = output_pair
+        index = self.output_labels[(transition, label)]
+        output_vector[index] = 1
+        return output_vector
 
      
     

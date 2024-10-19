@@ -11,7 +11,7 @@ from extract_training_data import FeatureExtractor
 class DependencyDataset(Dataset):
 
   def __init__(self, inputs_filename, output_filename):
-    self.inputs = np.load(input_filename)
+    self.inputs = np.load(inputs_filename)
     self.outputs = np.load(output_filename)
 
   def __len__(self): 
@@ -23,62 +23,79 @@ class DependencyDataset(Dataset):
 
 class DependencyModel(Module): 
 
-  def __init__(self, word_types, outputs):
-    super(DependencyModel, self).__init__()
-    # TODO: complete for part 3
+    def __init__(self, word_types, outputs):
+        super(DependencyModel, self).__init__()
+        # Embedding layer: maps word types to 128-dimensional embeddings
+        self.embedding = Embedding(num_embeddings=word_types, embedding_dim=128)
+        # Hidden layer: input size is 768 (6 tokens * 128 embedding size), output size is 128
+        self.hidden = Linear(in_features=768, out_features=128)
+        # Output layer: input size is 128, output size is the number of possible transitions (91)
+        self.output = Linear(in_features=128, out_features=outputs)
 
-  def forward(self, inputs):
+    def forward(self, inputs):
+        # Pass the inputs through the embedding layer
+        embedded = self.embedding(inputs)  # (batch_size, 6, 128)
+        # Flatten the embeddings to (batch_size, 768)
+        embedded_flattened = embedded.view(embedded.size(0), -1)  # (batch_size, 768)
+        # Pass through the hidden layer and apply ReLU
+        hidden_output = relu(self.hidden(embedded_flattened))  # (batch_size, 128)
+        # Pass through the output layer to get logits
+        output_logits = self.output(hidden_output)  # (batch_size, 91)
+        return output_logits
 
-    # TODO: complete for part 3
-    return torch.zeros(inputs.shape(0), 91)  # replace this line
 
 
 def train(model, loader): 
 
-  loss_function = NLLoss(reduction='mean')
+    loss_function = torch.nn.CrossEntropyLoss(reduction='mean')  # Use CrossEntropyLoss
 
-  LEARNING_RATE = 0.01 
-  optimizer = torch.optim.Adagrad(params=model.parameters(), lr=LEARNING_RATE)
+    LEARNING_RATE = 0.01 
+    optimizer = torch.optim.Adagrad(params=model.parameters(), lr=LEARNING_RATE)
 
-  tr_loss = 0 
-  tr_steps = 0
+    tr_loss = 0 
+    tr_steps = 0
 
-  # put model in training mode
-  model.train()
- 
+    # put model in training mode
+    model.train()
 
-  correct = 0 
-  total =  0 
-  for idx, batch in enumerate(loader):
- 
-    inputs, targets = batch
- 
-    predictions = model(torch.LongTensor(inputs))
-
-    loss = loss_function(predictions, targets)
-    tr_loss += loss.item()
-
-    #print("Batch loss: ", loss.item()) # Helpful for debugging, maybe 
-
-    tr_steps += 1
+    correct = 0 
+    total =  0 
+    for idx, batch in enumerate(loader):
     
-    if idx % 1000==0:
-      curr_avg_loss = tr_loss / tr_steps
-      print(f"Current average loss: {curr_avg_loss}")
+        inputs, targets = batch
 
-    # To compute training accuracy for this epoch 
-    correct += sum(torch.argmax(logits, dim=1) == torch.argmax(targets, dim=1))
-    total += len(inputs)
-      
-    # Run the backward pass to update parameters 
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+        predictions = model(torch.LongTensor(inputs))
+
+        # Ensure targets are in the correct data type (long)
+        targets = targets.long()
+
+        # Ensure that targets is a 1D tensor with class indices
+        if targets.ndim == 2 and targets.shape[1] == 91:
+            targets = torch.argmax(targets, dim=1)
+
+        loss = loss_function(predictions, targets)
+        tr_loss += loss.item()
+
+        tr_steps += 1
+        
+        if idx % 1000 == 0:
+            curr_avg_loss = tr_loss / tr_steps
+            print(f"Current average loss: {curr_avg_loss}")
+
+        # To compute training accuracy for this epoch 
+        correct += sum(torch.argmax(predictions, dim=1) == targets)
+        total += len(inputs)
+          
+        # Run the backward pass to update parameters 
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+    epoch_loss = tr_loss / tr_steps
+    acc = correct / total
+    print(f"Training loss epoch: {epoch_loss},   Accuracy: {acc}")
 
 
-  epoch_loss = tr_loss / tr_steps
-  acc = correct / total
-  print(f"Training loss epoch: {epoch_loss},   Accuracy: {acc}")
 
 
 if __name__ == "__main__":
