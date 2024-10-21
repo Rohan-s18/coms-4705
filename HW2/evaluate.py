@@ -5,28 +5,31 @@ import sys
 
 
 def compare_parser(target, predict):
-    target_unlabeled = set((d.id,d.head) for d in target.deprels.values())
-    target_labeled = set((d.id,d.head,d.deprel) for d in target.deprels.values())
-    predict_unlabeled = set((d.id,d.head) for d in predict.deprels.values())
-    predict_labeled = set((d.id,d.head,d.deprel) for d in predict.deprels.values())
+    target_unlabeled = set((d.id, d.head) for d in target.deprels.values())
+    target_labeled = set((d.id, d.head, d.deprel) for d in target.deprels.values())
+    predict_unlabeled = set((d.id, d.head) for d in predict.deprels.values())
+    predict_labeled = set((d.id, d.head, d.deprel) for d in predict.deprels.values())
 
     labeled_correct = len(predict_labeled.intersection(target_labeled))
     unlabeled_correct = len(predict_unlabeled.intersection(target_unlabeled))
     num_words = len(predict_labeled)
-    return labeled_correct, unlabeled_correct, num_words 
+    return labeled_correct, unlabeled_correct, num_words
 
 
 if __name__ == "__main__":
-
-    WORD_VOCAB_FILE = 'data/words.vocab'
-    POS_VOCAB_FILE = 'data/pos.vocab'
+    WORD_VOCAB_FILE = "data/words.vocab"
+    POS_VOCAB_FILE = "data/pos.vocab"
 
     try:
-        word_vocab_f = open(WORD_VOCAB_FILE,'r')
-        pos_vocab_f = open(POS_VOCAB_FILE,'r') 
+        word_vocab_f = open(WORD_VOCAB_FILE, "r")
+        pos_vocab_f = open(POS_VOCAB_FILE, "r")
     except FileNotFoundError:
-        print("Could not find vocabulary files {} and {}".format(WORD_VOCAB_FILE, POS_VOCAB_FILE))
-        sys.exit(1) 
+        print(
+            "Could not find vocabulary files {} and {}".format(
+                WORD_VOCAB_FILE, POS_VOCAB_FILE
+            )
+        )
+        sys.exit(1)
 
     extractor = FeatureExtractor(word_vocab_f, pos_vocab_f)
     parser = Parser(extractor, sys.argv[1])
@@ -36,16 +39,18 @@ if __name__ == "__main__":
     total_words = 0
 
     las_list = []
-    uas_list = []    
-   
-    count = 0 
-    with open(sys.argv[2],'r') as in_file: 
+    uas_list = []
+
+    count = 0
+    with open(sys.argv[2], "r") as in_file:
         print("Evaluating. (Each . represents 100 test dependency trees)")
         for dtree in conll_reader(in_file):
             words = dtree.words()
             pos = dtree.pos()
             predict = parser.parse_sentence(words, pos)
-            labeled_correct, unlabeled_correct, num_words = compare_parser(dtree, predict)
+            labeled_correct, unlabeled_correct, num_words = compare_parser(
+                dtree, predict
+            )
             if num_words == 0:
                 continue
             las_s = labeled_correct / float(num_words)
@@ -55,9 +60,9 @@ if __name__ == "__main__":
             total_labeled_correct += labeled_correct
             total_unlabeled_correct += unlabeled_correct
             total_words += num_words
-            count +=1 
+            count += 1
             if count % 100 == 0:
-                print(".",end="")
+                print(".", end="")
                 sys.stdout.flush()
     print()
 
