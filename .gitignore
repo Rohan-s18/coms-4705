@@ -37,6 +37,8 @@ MANIFEST
 *.manifest
 *.spec
 
+hw3data
+
 .ruff_cache
 
 hw1_data
