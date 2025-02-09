@@ -14,7 +14,7 @@ def main():
         "world_id", type=int, choices=range(1, 4), help="The world that we are testing on"
     )
     parser.add_argument(
-        "-e", type=int, choices=range(1, 5), default=0, help="A* and local search heuristic options (1,3 for Manhattan; 2,4 for Euclidean)"
+        "-e", type=int, choices=range(0, 5), default=0, help="A* and local search heuristic options (1,3 for Manhattan; 2,4 for Euclidean)"
     )
     parser.add_argument(
         "-b", type=int, default=50, help="Beam width for beam search (default 50)"
