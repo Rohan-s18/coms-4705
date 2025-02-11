@@ -1,3 +1,9 @@
+"""
+author: rohan singh (rs4607)
+hw1 programming section for COMS 4705
+"""
+
+
 import numpy as np
 from queue import PriorityQueue
 from collections import deque
@@ -70,7 +76,7 @@ def a_star(grid, start, goal, mode: PathPlanMode, heuristic: Heuristic, width):
         _, g, node = frontier.get()
 
         if node == goal:
-            # Reconstruct path
+            # reconstructing the path
             path = []
             while node is not None:
                 path.append(node)
@@ -112,7 +118,7 @@ def local_search(grid, start, goal, heuristic: Heuristic):
             path.append(best_node)
             current_node = best_node
         else:
-            break  # No valid neighbors to proceed
+            break  # no valid neighbors to proceed
 
     return path
 
