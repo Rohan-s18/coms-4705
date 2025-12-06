@@ -43,6 +43,10 @@ hw3data
 
 ontonotes_srl
 
+.DS_Store
+
+.vscode
+
 hw1_data
 
 # Installer logs
